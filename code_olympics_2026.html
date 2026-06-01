@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MindMeld</title>
+<meta name="description" content="MindMeld is a confidence-aware quiz platform that measures not just what you know — but how certain you are. Load any JSON question set, take a timed exam, and get a detailed report exposing misconceptions, lucky guesses, and true knowledge gaps.">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0d0d0f;--paper:#f5f2ed;--accent:#c84b31;--ok:#2d7a4f;--warn:#b07d2a;--muted:#7a7570;--border:#ddd9d3;--card:#fff;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Syne',sans-serif;background:var(--paper);color:var(--ink)}
+button{font-family:inherit;cursor:pointer;transition:.15s}
+textarea{font-family:'DM Mono',monospace}
+#statebar{display:flex;align-items:center;justify-content:center;gap:0;padding:10px 16px;background:var(--ink);position:sticky;top:0;z-index:9}
+.step{display:flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#555;transition:.2s}
+.step.active{background:var(--accent);color:#fff}
+.step.done{color:#aaa}
+.step-dot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;background:#333;color:#999}
+.step.active .step-dot{background:#fff;color:var(--accent)}
+.step.done .step-dot{background:var(--ok);color:#fff}
+.step-line{width:32px;height:1px;background:#333}
+#screen{max-width:700px;margin:0 auto;padding:1.5rem 1rem}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:.5rem}
+.logo-mark{width:40px;height:40px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.logo-mark img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+.logo-mark-fallback{font-family:'DM Serif Display',serif;font-size:18px;color:#fff}
+.logo-name{font-family:'DM Serif Display',serif;font-size:26px;color:var(--ink)}
+.tagline{font-size:13px;color:var(--muted);margin-bottom:1.5rem;line-height:1.6}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:.875rem;transition:.2s}
+.drop-zone.drag{border-color:var(--accent);background:#fdf5f3}
+#qinput{width:100%;min-height:180px;resize:vertical;border:none;outline:none;background:transparent;font-size:12px;line-height:1.7;color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem}
+.btn-primary{flex:1;min-width:130px;padding:.7rem 1.2rem;background:var(--ink);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;letter-spacing:.3px}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed}
+.btn-ghost{padding:.7rem 1rem;background:transparent;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--ink);font-weight:600}
+.btn-ghost:hover{border-color:var(--ink)}
+.error-box{background:#fdf0ee;border:1px solid #f4b8ae;border-radius:8px;padding:10px 14px;font-size:13px;color:#9b2c1a;margin-bottom:.875rem;display:none}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:.25rem}
+.feat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.75rem;font-size:12px;color:var(--muted)}
+.feat strong{display:block;font-size:13px;margin-bottom:2px;color:var(--ink)}
+.exam-top{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;flex-wrap:wrap}
+.timer{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;min-width:62px;color:var(--ink)}
+.timer.warn{color:var(--warn)}.timer.danger{color:var(--accent)}
+.prog-track{flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden;min-width:80px}
+.prog-fill{height:100%;background:var(--ink);border-radius:99px;transition:width 1s linear,background .3s}
+.nav-grid{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1rem}
+.nav-btn{width:32px;height:32px;border-radius:6px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer}
+.nav-btn.cur{border:2px solid var(--accent);color:var(--accent);background:#fdf5f3}
+.nav-btn.done{background:var(--ok);color:#fff;border-color:var(--ok)}
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:.875rem}
+.q-meta{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:.75rem}
+.q-text{font-size:16px;font-weight:600;line-height:1.5;margin-bottom:1rem;font-family:'DM Serif Display',serif}
+.opt-btn{width:100%;display:flex;align-items:center;gap:10px;padding:.7rem .875rem;border-radius:8px;margin-bottom:6px;text-align:left;background:var(--paper);border:1px solid var(--border);font-size:14px;color:var(--ink)}
+.opt-btn.sel{border:2px solid var(--accent);background:#fdf5f3;color:var(--accent);font-weight:600}
+.opt-dot{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.opt-btn.sel .opt-dot{background:var(--accent);border-color:var(--accent);color:#fff}
+.opt-sq .opt-dot{border-radius:4px}
+.conf-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.125rem;margin-bottom:.875rem}
+.conf-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.conf-row{display:flex;gap:7px}
+.conf-btn{flex:1;padding:.65rem .5rem;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--paper);color:var(--muted);text-transform:capitalize;cursor:pointer}
+.conf-btn.low.sel{background:#fdf0ee;border-color:var(--accent);color:var(--accent)}
+.conf-btn.medium.sel{background:#fdf8ec;border-color:var(--warn);color:var(--warn)}
+.conf-btn.high.sel{background:#eef6f1;border-color:var(--ok);color:var(--ok)}
+.nav-row{display:flex;gap:8px}
+.nav-row button{flex:1;padding:.65rem;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--border);background:var(--card);color:var(--ink);cursor:pointer}
+.nav-row button:disabled{color:#ccc;cursor:not-allowed}
+.submit-btn{padding:.5rem 1rem;border-radius:8px;font-size:13px;font-weight:700;background:var(--ok);color:#fff;border:none;cursor:pointer}
+.score-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-bottom:1.25rem}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.875rem}
+.sc-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.sc-val{font-size:24px;font-weight:800;line-height:1;margin-bottom:2px}
+.sc-sub{font-size:10px;color:var(--muted)}
+.matrix{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:1.25rem}
+.mx{border-radius:8px;padding:.75rem}
+.mx-ok{background:#eef6f1}.mx-misc{background:#fdf0ee}.mx-guess{background:#fdf8ec}.mx-gap{background:#f5f5f4}
+.mx-label{font-size:11px;font-weight:700;margin-bottom:3px}
+.mx-ok .mx-label{color:var(--ok)}.mx-misc .mx-label{color:var(--accent)}.mx-guess .mx-label{color:var(--warn)}.mx-gap .mx-label{color:var(--muted)}
+.mx-val{font-size:22px;font-weight:800}
+.mx-ok .mx-val{color:var(--ok)}.mx-misc .mx-val{color:var(--accent)}.mx-guess .mx-val{color:var(--warn)}.mx-gap .mx-val{color:var(--muted)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:.875rem}
+.tab{padding:.55rem .875rem;font-size:12px;font-weight:700;background:none;border:none;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;text-transform:uppercase;letter-spacing:.8px;cursor:pointer}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.q-result{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:7px;background:var(--card)}
+.q-result.misc{border-color:#f4b8ae;background:#fdf8f7}
+.q-header{display:flex;align-items:center;gap:8px;padding:.75rem 1rem;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.q-icon{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.q-icon.ok{background:#eef6f1;color:var(--ok)}.q-icon.bad{background:#fdf0ee;color:var(--accent)}
+.q-body{padding:0 1rem 1rem;border-top:1px solid var(--border)}
+.r-opt{display:flex;align-items:center;gap:7px;padding:.5rem .75rem;border-radius:7px;font-size:13px;margin-top:5px;border:1px solid transparent}
+.r-opt.right{background:#eef6f1;border-color:#a3d4b8;color:var(--ok)}
+.r-opt.wrong{background:#fdf0ee;border-color:#f4b8ae;color:var(--accent)}
+.misc-alert{margin-top:8px;padding:.7rem .875rem;background:#fde8e5;border-radius:7px;font-size:12px;color:#9b2c1a;line-height:1.5}
+@keyframes fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#screen{animation:fade-in .25s ease}
+</style>
+
+<div id="statebar">
+  <div class="step active" id="step-create"><div class="step-dot">1</div>Create</div>
+  <div class="step-line"></div>
+  <div class="step" id="step-exam"><div class="step-dot">2</div>Exam</div>
+  <div class="step-line"></div>
+  <div class="step" id="step-report"><div class="step-dot">3</div>Report</div>
+</div>
+<div id="screen"></div>
+
+<script>
+const ICON_PATH = "icon.png";
+
+function logoMarkHTML() {
+  return `<div class="logo-mark"><img src="${ICON_PATH}" alt="MindMeld" onerror="this.parentNode.innerHTML='<span class=\\'logo-mark-fallback\\'>MM</span>'"></div>`;
+}
+
+function examLogoHTML() {
+  return `<img src="${ICON_PATH}" alt="MindMeld" style="width:28px;height:28px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">`;
+}
+
+function Analyzer(questions,responses){this.q=questions;this.r=responses;this.n=questions.length;}
+Analyzer.prototype.run=function(){
+  let cH=0,cL=0,wH=0,wL=0,correct=0,misc=[],guess=[],details=[];
+  this.q.forEach((q,i)=>{
+    const r=this.r[i]||{answer:[],confidence:"low"};
+    const ok=[...r.answer].sort().join()===([...q.answer]).sort().join();
+    const c=r.confidence;
+    if(ok)correct++;
+    if(ok&&c==="high")cH++;if(ok&&c==="low"){cL++;guess.push(i);}
+    if(!ok&&c==="high"){wH++;misc.push(i);}if(!ok&&c==="low")wL++;
+    details.push({i,q,r,ok,c});
+  });
+  const pct=v=>this.n?Math.round(v/this.n*100):0;
+  return{score:pct(correct),correct,n:this.n,kc:pct(cH+wL*0.5),solidRate:pct(cH),overRate:pct(wH),guessRate:pct(cL),cH,cL,wH,wL,misc,guess,details};
+};
+
+const APP={state:"create",questions:[],responses:[],cur:0,totalTime:0,timeLeft:0,_timer:null,activeTab:"all",open:new Set()};
+const CONF_C={low:"var(--accent)",medium:"var(--warn)",high:"var(--ok)"};
+const fmt=s=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+const STEPS=["create","exam","report"];
+function go(state){
+  clearInterval(APP._timer);
+  APP.state=state;APP.activeTab="all";APP.open=new Set();
+  STEPS.forEach(s=>{
+    const el=document.getElementById(`step-${s}`);
+    const si=STEPS.indexOf(s),ci=STEPS.indexOf(state);
+    el.className="step"+(si===ci?" active":si<ci?" done":"");
+    el.querySelector(".step-dot").textContent=si<ci?"✓":(si+1);
+  });
+  const sc=document.getElementById("screen");
+  sc.style.animation="none";sc.offsetHeight;sc.style.animation="";
+  sc.innerHTML=state==="create"?renderCreate():state==="exam"?renderExam():renderReport();
+  if(state==="exam")startTimer();
+  if(state==="create")setTimeout(setupCreate,50);
+}
+
+const SAMPLE=[
+  {question:"What does `===` check in JavaScript?",type:"single",options:["Value only","Type only","Value and type","Reference"],answer:[2]},
+  {question:"Which of these are valid JS runtimes?",type:"multiple",options:["Node.js","Bun","Chrome V8 Engine","PostgreSQL"],answer:[0,1,2]},
+  {question:"What does `typeof null` return?",type:"single",options:['"null"','"undefined"','"object"','"number"'],answer:[2]},
+  {question:"Which statements about Promises are true?",type:"multiple",options:["They are always async",".then returns a new Promise","They block the event loop","They can be chained"],answer:[1,3]},
+  {question:"What does Array.prototype.reduce return?",type:"single",options:["Always an array","A single accumulated value","A boolean","undefined"],answer:[1]},
+  {question:"Which are valid ways to declare variables?",type:"multiple",options:["var","let","const","def"],answer:[0,1,2]}
+];
+
+function renderCreate(){
+  return `<div class="logo">${logoMarkHTML()}<div class="logo-name">MindMeld</div><span style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-left:4px">Code Olympics 2026</span></div>
+  <p class="tagline">Paste JSON questions or upload a file. MindMeld measures not just <em>what</em> you know — but <em>how certain</em> you are. Confidence + correctness = real understanding.</p>
+  <div class="error-box" id="err"></div>
+  <div class="drop-zone" id="dz"><textarea id="qinput" placeholder='[\n  {\n    "question": "What is JS?",\n    "type": "single",\n    "options": ["Language","DB","OS","Browser"],\n    "answer": [0]\n  }\n]'></textarea><div style="text-align:center;margin-top:6px;font-size:12px;color:var(--muted)">↑ Drop a .json file here</div></div>
+  <div class="row">
+    <button class="btn-primary" id="startBtn" onclick="tryStart()" disabled>▶ Begin Exam</button>
+    <button class="btn-ghost" onclick="loadSample()">✦ Load Sample</button>
+    <button class="btn-ghost" onclick="document.getElementById('fu').click()">↑ Upload JSON</button>
+    <input id="fu" type="file" accept=".json" style="display:none" onchange="loadFile(this)">
+  </div>
+  <div class="features">
+    <div class="feat"><strong>⏱ Auto-timed</strong>30 sec per question</div>
+    <div class="feat"><strong>🧠 Confidence</strong>Low · Medium · High</div>
+    <div class="feat"><strong>⚠ Misconceptions</strong>Wrong + High confidence</div>
+    <div class="feat"><strong>📊 5 Metrics</strong>Score, KCS, Overconfidence…</div>
+  </div>`;
+}
+
+function setupCreate(){
+  const ta=document.getElementById("qinput"),dz=document.getElementById("dz");
+  if(!ta)return;
+  ta.oninput=()=>{document.getElementById("err").style.display="none";document.getElementById("startBtn").disabled=!ta.value.trim();};
+  dz.ondragover=e=>{e.preventDefault();dz.classList.add("drag");};
+  dz.ondragleave=()=>dz.classList.remove("drag");
+  dz.ondrop=e=>{e.preventDefault();dz.classList.remove("drag");loadFile({files:e.dataTransfer.files});};
+}
+
+function loadSample(){
+  document.getElementById("qinput").value=JSON.stringify(SAMPLE,null,2);
+  document.getElementById("startBtn").disabled=false;
+}
+
+async function loadFile(inp){
+  if(!inp.files[0])return;
+  const text=await inp.files[0].text();
+  document.getElementById("qinput").value=text;
+  document.getElementById("startBtn").disabled=false;
+}
+
+function tryStart(){
+  const raw=document.getElementById("qinput").value.trim(),err=document.getElementById("err");
+  try{
+    const qs=JSON.parse(raw);
+    if(!Array.isArray(qs)||!qs.length)throw new Error("Must be a non-empty JSON array");
+    qs.forEach((q,i)=>{if(!q.question||!q.options||!q.answer)throw new Error(`Q${i+1} missing required fields`);});
+    APP.questions=qs;APP.responses=qs.map(()=>({answer:[],confidence:null}));
+    APP.cur=0;APP.totalTime=qs.length*30;APP.timeLeft=qs.length*30;
+    go("exam");
+  }catch(e){err.textContent="⚠ "+e.message;err.style.display="block";}
+}
+
+function renderExam(){
+  const q=APP.questions[APP.cur],r=APP.responses[APP.cur];
+  const allDone=APP.responses.every(x=>x.answer.length&&x.confidence);
+  const pct=Math.round(APP.timeLeft/APP.totalTime*100);
+  const tCol=APP.timeLeft<60?"var(--accent)":APP.timeLeft<180?"var(--warn)":"var(--ink)";
+  const tCls=APP.timeLeft<60?"danger":APP.timeLeft<180?"warn":"";
+
+  const navDots=APP.questions.map((_,i)=>{
+    const ri=APP.responses[i],done=ri.answer.length&&ri.confidence,cur=i===APP.cur;
+    return `<button class="nav-btn${cur?" cur":done?" done":""}" onclick="navTo(${i})">${i+1}</button>`;
+  }).join("");
+
+  const opts=q.options.map((opt,i)=>{
+    const sel=r.answer.includes(i),isMulti=q.type==="multiple";
+    return `<button class="opt-btn${sel?" sel":""}${isMulti?" opt-sq":""}" onclick="pickOpt(${i})"><div class="opt-dot">${sel?"✓":""}</div>${opt}</button>`;
+  }).join("");
+
+  const confs=["low","medium","high"].map(c=>{
+    const icons={low:"😕",medium:"😐",high:"😊"};
+    return `<button class="conf-btn ${c}${r.confidence===c?" sel":""}" onclick="pickConf('${c}')">${icons[c]} ${c}</button>`;
+  }).join("");
+
+  return `<div class="exam-top">
+    ${examLogoHTML()}
+    <span style="font-family:'DM Serif Display',serif;font-size:16px">MindMeld</span>
+    <div class="prog-track"><div class="prog-fill" id="pfill" style="width:${pct}%;background:${tCol}"></div></div>
+    <div class="timer ${tCls}" id="timer">${fmt(APP.timeLeft)}</div>
+    <button class="submit-btn" onclick="submitExam()">Submit ↗</button>
+  </div>
+  <div class="nav-grid">${navDots}</div>
+  <div class="q-card">
+    <div class="q-meta">Q${APP.cur+1} of ${APP.questions.length} · ${q.type==="single"?"Single choice":"Multiple choice — select all that apply"}</div>
+    <div class="q-text">${q.question}</div>${opts}
+  </div>
+  <div class="conf-box"><div class="conf-label">🧠 Confidence level</div><div class="conf-row">${confs}</div></div>
+  <div class="nav-row">
+    <button onclick="navTo(${APP.cur-1})" ${APP.cur===0?"disabled":""}>← Previous</button>
+    <button onclick="navTo(${APP.cur+1})" ${APP.cur===APP.questions.length-1?"disabled":""}>Next →</button>
+  </div>`;
+}
+
+function startTimer(){
+  APP._timer=setInterval(()=>{
+    APP.timeLeft=Math.max(0,APP.timeLeft-1);
+    const t=document.getElementById("timer"),pf=document.getElementById("pfill");
+    if(!t){clearInterval(APP._timer);return;}
+    t.textContent=fmt(APP.timeLeft);
+    t.className="timer"+(APP.timeLeft<60?" danger":APP.timeLeft<180?" warn":"");
+    const col=APP.timeLeft<60?"var(--accent)":APP.timeLeft<180?"var(--warn)":"var(--ink)";
+    if(pf){pf.style.width=Math.round(APP.timeLeft/APP.totalTime*100)+"%";pf.style.background=col;}
+    if(APP.timeLeft===0){clearInterval(APP._timer);go("report");}
+  },1000);
+}
+
+function pickOpt(i){
+  const r=APP.responses[APP.cur],q=APP.questions[APP.cur];
+  r.answer=q.type==="single"?[i]:r.answer.includes(i)?r.answer.filter(x=>x!==i):[...r.answer,i];
+  document.getElementById("screen").innerHTML=renderExam();
+}
+function pickConf(c){APP.responses[APP.cur].confidence=c;document.getElementById("screen").innerHTML=renderExam();}
+function navTo(i){if(i<0||i>=APP.questions.length)return;APP.cur=i;document.getElementById("screen").innerHTML=renderExam();}
+function submitExam(){
+  const missing=APP.responses.filter(r=>!r.answer.length||!r.confidence).length;
+  if(missing&&!confirm(`${missing} question(s) unanswered. Submit anyway?`))return;
+  go("report");
+}
+
+function renderReport(){
+  const R=new Analyzer(APP.questions,APP.responses).run();
+  const sCol=R.score>=80?"var(--ok)":R.score>=60?"var(--warn)":"var(--accent)";
+  const kCol=R.kc>=70?"var(--ok)":R.kc>=50?"var(--warn)":"var(--accent)";
+
+  const filtered=R.details.filter(d=>
+    APP.activeTab==="misc"?(!d.ok&&d.c==="high"):
+    APP.activeTab==="guess"?(d.ok&&d.c==="low"):true
+  );
+
+  const qList=filtered.length?filtered.map(d=>{
+    const misc=!d.ok&&d.c==="high",guess=d.ok&&d.c==="low",isOpen=APP.open.has(d.i);
+    const confBadge=`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:${d.c==="high"?"#eef6f1":d.c==="medium"?"#fdf8ec":"#fdf0ee"};color:${CONF_C[d.c]}">${d.c} conf</span>`;
+    const badges=(misc?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#fde8e5;color:var(--accent)">⚠ Misconception</span>`:"")+
+      (guess?`<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:#fdf8ec;color:var(--warn)">Lucky Guess</span>`:"");
+    const body=isOpen?`<div class="q-body">${d.q.options.map((opt,oi)=>{
+      const up=d.r.answer.includes(oi),right=d.q.answer.includes(oi);
+      return `<div class="r-opt ${right?"right":up?"wrong":""}">${right?"✓":up?"✗":"·"} ${opt}${up?" <strong>← your answer</strong>":""}</div>`;
+    }).join("")}${misc?`<div class="misc-alert"><strong>⚠ Misconception detected:</strong> You answered incorrectly with <strong>high confidence</strong>. Your mental model of this concept is flawed in a way you're unaware of. Priority review recommended.</div>`:""}</div>`:"";
+    return `<div class="q-result${misc?" misc":""}"><button class="q-header" onclick="toggleQ(${d.i})"><div class="q-icon ${d.ok?"ok":"bad"}">${d.ok?"✓":"✗"}</div><span style="flex:1;font-size:13px;font-weight:600;line-height:1.4">Q${d.i+1}: ${d.q.question}</span><div style="display:flex;gap:5px;align-items:center;flex-shrink:0">${badges}${confBadge}<span style="color:var(--muted);font-size:14px">${isOpen?"▲":"▼"}</span></div></button>${body}</div>`;
+  }).join(""):`<div style="text-align:center;padding:2.5rem;color:var(--muted)">✅ None found — great calibration!</div>`;
+
+  const tab=id=>`<button class="tab${APP.activeTab===id?" active":""}" onclick="setTab('${id}')">${id==="all"?"All Questions":id==="misc"?`Misconceptions (${R.misc.length})`:`Lucky Guesses (${R.guess.length})`}</button>`;
+
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px">
+    <div><div style="font-family:'DM Serif Display',serif;font-size:22px;margin-bottom:2px">Assessment Report</div>
+    <div style="font-size:13px;color:var(--muted)">${R.n} questions · ${R.misc.length} misconception${R.misc.length!==1?"s":""} detected</div></div>
+    <button class="btn-ghost" onclick="go('create')">↺ New Exam</button></div>
+  <div class="score-cards">
+    <div class="sc"><div class="sc-label">Score</div><div class="sc-val" style="color:${sCol}">${R.score}%</div><div class="sc-sub">${R.correct}/${R.n} correct</div></div>
+    <div class="sc"><div class="sc-label">Knowledge Confidence</div><div class="sc-val" style="color:${kCol}">${R.kc}%</div><div class="sc-sub">calibration score</div></div>
+    <div class="sc"><div class="sc-label">Solid Answers</div><div class="sc-val" style="color:var(--ok)">${R.solidRate}%</div><div class="sc-sub">correct + high conf</div></div>
+    <div class="sc"><div class="sc-label">Overconfidence</div><div class="sc-val" style="color:var(--accent)">${R.overRate}%</div><div class="sc-sub">wrong + high conf</div></div>
+    <div class="sc"><div class="sc-label">Guess Rate</div><div class="sc-val" style="color:var(--warn)">${R.guessRate}%</div><div class="sc-sub">correct + low conf</div></div>
+  </div>
+  <div class="matrix">
+    <div class="mx mx-ok"><div class="mx-label">✓ Correct + High Conf</div><div class="mx-val">${R.cH}</div><div style="font-size:11px;color:var(--ok)">Solid knowledge</div></div>
+    <div class="mx mx-misc"><div class="mx-label">✗ Wrong + High Conf</div><div class="mx-val">${R.wH}</div><div style="font-size:11px;color:var(--accent)">⚠ Misconceptions</div></div>
+    <div class="mx mx-guess"><div class="mx-label">✓ Correct + Low Conf</div><div class="mx-val">${R.cL}</div><div style="font-size:11px;color:var(--warn)">Lucky guesses</div></div>
+    <div class="mx mx-gap"><div class="mx-label">✗ Wrong + Low Conf</div><div class="mx-val">${R.wL}</div><div style="font-size:11px;color:var(--muted)">Knowledge gaps</div></div>
+  </div>
+  <div class="tabs">${tab("all")}${tab("misc")}${tab("guess")}</div>
+  ${qList}`;
+}
+
+function toggleQ(i){APP.open.has(i)?APP.open.delete(i):APP.open.add(i);document.getElementById("screen").innerHTML=renderReport();}
+function setTab(t){APP.activeTab=t;document.getElementById("screen").innerHTML=renderReport();}
+
+go("create");
+setTimeout(setupCreate,80);
+</script>
